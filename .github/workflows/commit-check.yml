@@ -1,0 +1,73 @@
+name: GitHub Commit Check
+
+on:
+  schedule:
+    # Run at 6 PM UTC every day
+    - cron: '0 18 * * *'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  check-activity:
+    name: Check GitHub Activity
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9' # Or your project's Python version
+          cache: 'uv'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install DUCK and dependencies
+        run: |
+          uv pip install --system .
+
+      - name: Check for today's activity (commits/PRs)
+        id: duck_check # Add an id to refer to this step's outcome
+        env:
+          GITHUB_USERNAME: ${{ secrets.GITHUB_USERNAME }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional: Pass DUCK specific env vars if needed for page limits, e.g.:
+          # DUCK_MAX_EVENT_PAGES: 5
+          # DUCK_MAX_PR_PAGES: 5
+        run: |
+          duck --user "${{ secrets.GITHUB_USERNAME }}" --token "${{ secrets.GITHUB_TOKEN }}"
+          # The script will exit 0 if activity is found, 1 if not.
+          # We need to ensure failure() works as expected or explicitly check outcome.
+          # For robustness, let's explicitly set an output based on exit code.
+          # GitHub Actions treat non-zero exit codes as failure by default.
+          # So, if duck exits 1 (no activity), this step fails.
+
+      - name: Generate email HTML if no activity
+        if: ${{ failure() }} # This condition means the 'duck_check' step failed (exited non-zero)
+        run: |
+          mkdir -p tmp
+          python scripts/generate_email.py \
+            --username "${{ secrets.GITHUB_USERNAME }}" \
+            --output-path "tmp/activity-reminder-output.html"
+
+      - name: Send notification if no activity
+        if: ${{ failure() }} # This condition means the 'duck_check' step failed
+        uses: dawidd6/action-send-mail@v5
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+
+          subject: "DUCK: No GitHub Activity Today!"
+          to: ${{ secrets.EMAIL_RECIPIENT }}
+          from: DUCK Reminder <${{ secrets.SMTP_USER }}>
+          html_body: file://tmp/activity-reminder-output.html
+
+          priority: high
+          ignore_cert: false
