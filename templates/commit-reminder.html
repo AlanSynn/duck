@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Activity Reminder</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .container {
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 20px;
+            background-color: #fff;
+        }
+        .header {
+            border-bottom: 1px solid #e1e4e8;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #24292e;
+        }
+        .content {
+            margin-bottom: 20px;
+        }
+        .footer {
+            font-size: 12px;
+            color: #6a737d;
+            border-top: 1px solid #e1e4e8;
+            padding-top: 10px;
+            text-align: center;
+        }
+        .button {
+            display: inline-block;
+            padding: 6px 12px;
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 20px;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: middle;
+            cursor: pointer;
+            border: 1px solid #1b1f2326;
+            border-radius: 6px;
+            color: #fff;
+            background-color: #2da44e;
+            text-decoration: none;
+            margin-top: 10px;
+        }
+        .warning {
+            color: #9a6700;
+            background-color: #fff8c5;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>GitHub Activity Reminder</h1>
+        </div>
+        <div class="content">
+            <p>Hi {{username}},</p>
+
+            <div class="warning">
+                <strong>⚠️ No significant GitHub activity detected today ({{date}})</strong>
+                <p>{{ACTIVITY_MESSAGE}}</p>
+            </div>
+
+            <p>Need ideas? Consider:</p>
+            <ul>
+                <li>Fixing a bug</li>
+                <li>Adding documentation</li>
+                <li>Working on a new feature</li>
+                <li>Making a small improvement to one of your repositories</li>
+            </ul>
+
+            <a href="https://github.com/{{username}}" class="button">Go to GitHub ({{username}})</a>
+        </div>
+        <div class="footer">
+            <p>This is an automated message from DUCK (Did U Commit mr.Kim?). It checks your public GitHub activity (commits and PRs) daily.</p>
+            <p>© {{year}} DUCK</p>
+        </div>
+    </div>
+</body>
+</html>
