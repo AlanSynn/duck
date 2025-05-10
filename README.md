@@ -1,4 +1,4 @@
-# **D**id **U** **C**ommit mr.**K**im?
+# (D)id (U) (C)ommit mr.(K)im?
 
 <p align="center">
   <img src="assets/img/lazy_duck.png" alt="Lazy Duck Logo" height="200">
