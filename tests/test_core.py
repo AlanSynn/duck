@@ -186,6 +186,7 @@ def sample_pr_search_api_item_dict():
         "id": 1,
         "number": 1347,
         "state": "open",
+        "locked": False,
         "title": "Amazing new feature",
         "user": {"login": "octocat", "id": 1, "html_url": "https://github.com/octocat"},
         "created_at": now_iso,
