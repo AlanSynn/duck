@@ -30,31 +30,26 @@ jobs:
           uv pip install --system .
 
       - name: Check for today's activity (commits/PRs)
-        id: duck_check # Add an id to refer to this step's outcome
+        id: duck_check
         env:
           GITHUB_USERNAME: ${{ secrets.GITHUB_USERNAME }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Optional: Pass DUCK specific env vars if needed for page limits, e.g.:
-          # DUCK_MAX_EVENT_PAGES: 5
-          # DUCK_MAX_PR_PAGES: 5
+          EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
         run: |
-          duck --user "${{ secrets.GITHUB_USERNAME }}" --token "${{ secrets.GITHUB_TOKEN }}"
-          # The script will exit 0 if activity is found, 1 if not.
-          # We need to ensure failure() works as expected or explicitly check outcome.
-          # For robustness, let's explicitly set an output based on exit code.
-          # GitHub Actions treat non-zero exit codes as failure by default.
-          # So, if duck exits 1 (no activity), this step fails.
+          bash scripts/check_and_notify.sh
 
-      - name: Generate email HTML if no activity
-        if: ${{ failure() }} # This condition means the 'duck_check' step failed (exited non-zero)
+      - name: Generate email content
+        if: ${{ failure() }}
         run: |
-          mkdir -p tmp
-          python scripts/generate_email.py \
+          python3 scripts/generate_email.py \
             --username "${{ secrets.GITHUB_USERNAME }}" \
-            --output-path "tmp/activity-reminder-output.html"
+            --message "No GitHub activity detected for today. Please make a commit or create a PR to maintain your streak!" \
+            --output tmp/activity-reminder-output.html
 
       - name: Send notification if no activity
-        if: ${{ failure() }} # This condition means the 'duck_check' step failed
+        if: ${{ failure() }}
         uses: dawidd6/action-send-mail@v5
         with:
           server_address: smtp.gmail.com
