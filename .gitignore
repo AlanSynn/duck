@@ -22,8 +22,9 @@
 .AppleDouble
 .LSOverride
 
-# Icon must end with two 
-Icon
+# Icon must end with two
+Icon
+
 
 # Thumbnails
 ._*
@@ -237,3 +238,4 @@ Cargo.lock
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,linux,rust,python
 
+tmp/
