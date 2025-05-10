@@ -1,7 +1,7 @@
 # **D**id **U** **C**ommit mr.**K**im?
 
 <p align="center">
-  <img src="assets/img/lazy_duck.png" alt="Lazy Duck Logo">
+  <img src="assets/img/lazy_duck.png" alt="Lazy Duck Logo" height="200">
 </p>
 
 DUCK is a simple Python tool designed to help you maintain your GitHub activity streak. It checks daily for public commits and pull requests associated with your GitHub username. If no activity is found for the current day (UTC), it can send you a reminder email.
