@@ -1,7 +1,7 @@
 #!/bin/bash
 # Script to check for GitHub activity (commits or PRs) and send an email notification if none are found
 # Requires the environment variables:
-# - GITHUB_USERNAME
+# - USERNAME
 # - GITHUB_TOKEN (optional, for fetching private activity if applicable by duck)
 # - EMAIL_RECIPIENT
 # - SMTP_USER (for mailx)
@@ -27,8 +27,8 @@ else
 fi
 
 # Check for required environment variables
-if [ -z "$GITHUB_USERNAME" ]; then
-  echo "Error: GITHUB_USERNAME environment variable is required"
+if [ -z "$USERNAME" ]; then
+  echo "Error: USERNAME environment variable is required"
   exit 1
 fi
 
@@ -37,13 +37,13 @@ if [ -z "$EMAIL_RECIPIENT" ]; then
 fi
 
 # Construct duck command arguments
-DUCK_ARGS="--user $GITHUB_USERNAME"
+DUCK_ARGS="--user $USERNAME"
 if [ -n "$GITHUB_TOKEN" ]; then
   DUCK_ARGS="$DUCK_ARGS --token $GITHUB_TOKEN"
 fi
 
 # Run the activity check
-echo "Checking for GitHub activity by $GITHUB_USERNAME using DUCK..."
+echo "Checking for GitHub activity by $USERNAME using DUCK..."
 
 # Capture the exit code but still run even if the check fails
 # Ensure duck is in PATH or provide full path if necessary
@@ -125,7 +125,7 @@ if [ $CHECK_RESULT -ne 0 ] && [ -n "$EMAIL_RECIPIENT" ]; then
 
   PYTHON_CMD="python3 \"$SCRIPT_DIR/generate_email.py\""
   PYTHON_CMD="$PYTHON_CMD --send"
-  PYTHON_CMD="$PYTHON_CMD --username \"$GITHUB_USERNAME\""
+  PYTHON_CMD="$PYTHON_CMD --username \"$USERNAME\""
   PYTHON_CMD="$PYTHON_CMD --message \"$ACTIVITY_MESSAGE_DEFAULT\""
   PYTHON_CMD="$PYTHON_CMD --recipient \"$EMAIL_RECIPIENT\""
   PYTHON_CMD="$PYTHON_CMD --sender \"${SMTP_SENDER:-$SMTP_SENDER_DEFAULT}\""
@@ -148,7 +148,7 @@ if [ $CHECK_RESULT -ne 0 ] && [ -n "$EMAIL_RECIPIENT" ]; then
   # No need for mailx block anymore
 
 elif [ $CHECK_RESULT -eq 0 ]; then
-  echo "Activity found for $GITHUB_USERNAME. No notification needed."
+  echo "Activity found for $USERNAME. No notification needed."
 else # Should not happen if duck exits 0 or 1, but as a safeguard
   echo "DUCK command resulted in an unexpected exit code: $CHECK_RESULT."
 fi
