@@ -117,14 +117,14 @@ def main() -> int:
         if args.max_event_pages is not None
         else int(env_max_event_pages)
         if env_max_event_pages is not None
-        else github_config.get("max_event_pages", DEFAULT_MAX_EVENT_PAGES)
+        else config.get("max_event_pages", DEFAULT_MAX_EVENT_PAGES)
     )
     args.max_pr_pages = (
         args.max_pr_pages
         if args.max_pr_pages is not None
         else int(env_max_pr_pages)
         if env_max_pr_pages is not None
-        else github_config.get("max_pr_pages", DEFAULT_MAX_PR_PAGES)
+        else config.get("max_pr_pages", DEFAULT_MAX_PR_PAGES)
     )
 
     if not github_user:

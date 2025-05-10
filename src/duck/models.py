@@ -6,7 +6,7 @@ This module defines Pydantic models for GitHub API data and other internal data 
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class GitHubEvent(BaseModel):
@@ -26,8 +26,8 @@ class GitHubEvent(BaseModel):
     actor: Optional[Dict[str, Any]] = None
     payload: Optional[Dict[str, Any]] = None
 
+    @field_validator("created_at", mode="before")
     @classmethod
-    @validator("created_at", pre=True)
     def parse_created_at(cls, value: Any) -> datetime:
         """Parse and validate the created_at timestamp.
 
@@ -51,11 +51,10 @@ class GitHubEvent(BaseModel):
             return value
         raise ValueError(f"Invalid datetime format for created_at: {value}")
 
-    class Config:
-        """Pydantic model configuration."""
-
-        allow_population_by_field_name = True
-        extra = "ignore"  # Ignore extra fields from API response
+    model_config = ConfigDict(
+        populate_by_name=True,  # Replaces allow_population_by_field_name
+        extra="ignore",  # Ignore extra fields from API response
+    )
 
 
 # Placeholder for future models (e.g., CommitDetails, PRDetails, InsightReport)
@@ -68,8 +67,8 @@ class CommitAuthor(BaseModel):
     email: Optional[str] = None
     date: Optional[datetime] = None  # Commit date by the author
 
+    @field_validator("date", mode="before")
     @classmethod
-    @validator("date", pre=True)
     def parse_date(cls, value: Any) -> Optional[datetime]:
         """Parse and validate the date field.
 
@@ -95,6 +94,10 @@ class CommitAuthor(BaseModel):
             return value
         raise ValueError(f"Invalid datetime format for date: {value}")
 
+    model_config = ConfigDict(
+        extra="ignore"  # Assuming ignore if not specified, though not strictly needed if no Config class was there
+    )
+
 
 class CommitDetails(BaseModel):
     """Model for the details of a commit (the 'commit' object in API response)."""
@@ -102,6 +105,8 @@ class CommitDetails(BaseModel):
     author: Optional[CommitAuthor] = None
     committer: Optional[CommitAuthor] = None  # Committer can be different from author
     message: Optional[str] = None
+
+    model_config = ConfigDict(extra="ignore")
 
 
 class Commit(BaseModel):
@@ -123,11 +128,7 @@ class Commit(BaseModel):
     author: Optional[Dict[str, Any]] = None  # User object for the author, if available
     committer: Optional[Dict[str, Any]] = None  # User object for the committer, if available
 
-    class Config:
-        """Configuration for the Commit model."""
-
-        allow_population_by_field_name = True
-        extra = "ignore"
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
 
 class Repository(BaseModel):
@@ -141,11 +142,7 @@ class Repository(BaseModel):
     description: Optional[str] = None
     fork: bool
 
-    class Config:
-        """Configuration for the Repository model."""
-
-        allow_population_by_field_name = True
-        extra = "ignore"
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
 
 # --- Pull Request Models ---
@@ -158,11 +155,7 @@ class PullRequestUser(BaseModel):
     id: int
     html_url: Optional[str] = Field(None, alias="html_url")
 
-    class Config:
-        """Configuration for the PullRequestUser model."""
-
-        allow_population_by_field_name = True
-        extra = "ignore"
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
 
 class PullRequestRepoInfo(BaseModel):
@@ -173,10 +166,7 @@ class PullRequestRepoInfo(BaseModel):
     full_name: str
     html_url: str
 
-    class Config:
-        """Configuration for the PullRequestRepoInfo model."""
-
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
 
 
 class PullRequestSimple(BaseModel):
@@ -204,8 +194,8 @@ class PullRequestSimple(BaseModel):
 
     repository_url: Optional[str] = None
 
+    @field_validator("created_at", "updated_at", "closed_at", "merged_at", mode="before")
     @classmethod
-    @validator("created_at", "updated_at", "closed_at", "merged_at", pre=True)
     def parse_datetime_fields(cls, value: Any) -> Optional[datetime]:
         """Parse and validate datetime fields.
 
@@ -231,8 +221,4 @@ class PullRequestSimple(BaseModel):
             return value
         raise ValueError(f"Invalid datetime format: {value}")
 
-    class Config:
-        """Configuration for the PullRequestSimple model."""
-
-        allow_population_by_field_name = True
-        extra = "ignore"
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
