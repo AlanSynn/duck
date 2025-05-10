@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_MAX_EVENT_PAGES: int = 5
 DEFAULT_MAX_PR_PAGES: int = 2
 
+
 def _handle_github_api_http_error(response: requests.Response, context: Optional[str] = None) -> None:
     """Handle specific HTTP errors from the GitHub API response.
 
@@ -60,17 +61,13 @@ def _parse_events_from_response(events_data: list, page_num: int) -> List[GitHub
             logger.warning(f"Skipping an event due to TypeError (likely Pydantic model init) on page {page_num}: {e}. Event data: {event_item}")
     return parsed_events
 
-def _fetch_single_events_page(
-    url: str,
-    headers: dict,
-    page_num: int,
-    username_for_context: str
-) -> tuple[Optional[List[GitHubEvent]], Optional[str]]:
+
+def _fetch_single_events_page(url: str, headers: dict, page_num: int, username_for_context: str) -> tuple[Optional[List[GitHubEvent]], Optional[str]]:
     """Fetches a single page of events and returns events and next page URL."""
     logger.info(f"Fetching events page {page_num} from {url} for user {username_for_context}")
     try:
         response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status() # Raises HTTPError for bad responses (4XX or 5XX)
+        response.raise_for_status()  # Raises HTTPError for bad responses (4XX or 5XX)
         events_data = response.json()
 
         if not isinstance(events_data, list):
@@ -90,12 +87,13 @@ def _fetch_single_events_page(
     except requests.exceptions.Timeout:
         logger.error(f"Request to GitHub API for {username_for_context} timed out on page {page_num}.")
         return None, None
-    except requests.exceptions.RequestException as req_err: # Catches other network issues
+    except requests.exceptions.RequestException as req_err:  # Catches other network issues
         logger.error(f"Error requesting GitHub API for {username_for_context}, page {page_num}: {req_err}")
         return None, None
-    except ValueError as json_err: # Includes JSONDecodeError
+    except ValueError as json_err:  # Includes JSONDecodeError
         logger.error(f"Error decoding JSON for {username_for_context}, page {page_num}: {json_err}")
         return None, None
+
 
 def fetch_github_user_public_events(username: str, token: Optional[str] = None, max_pages: int = 10) -> Optional[List[GitHubEvent]]:
     """Fetch public events for a given GitHub user, handling pagination.
@@ -122,14 +120,9 @@ def fetch_github_user_public_events(username: str, token: Optional[str] = None, 
     logger.info(f"Fetching public events for user: {username}. Max pages: {max_pages}")
 
     while next_url and pages_fetched < max_pages:
-        page_events, next_url_from_page = _fetch_single_events_page(
-            url=next_url,
-            headers=headers,
-            page_num=pages_fetched + 1,
-            username_for_context=username
-        )
+        page_events, next_url_from_page = _fetch_single_events_page(url=next_url, headers=headers, page_num=pages_fetched + 1, username_for_context=username)
 
-        if page_events is None: # An error occurred in _fetch_single_events_page
+        if page_events is None:  # An error occurred in _fetch_single_events_page
             logger.error(f"Halting event fetch for {username} due to error on page {pages_fetched + 1}.")
             # Return None if a page fetch fails critically, or all_events if partial results are acceptable.
             # For this function, returning None on critical page error seems appropriate.
@@ -138,7 +131,7 @@ def fetch_github_user_public_events(username: str, token: Optional[str] = None, 
         all_events.extend(page_events)
         logger.info(f"Fetched {len(page_events)} events from page {pages_fetched + 1}. Total so far: {len(all_events)}.")
         pages_fetched += 1
-        next_url = next_url_from_page # Update next_url for the loop
+        next_url = next_url_from_page  # Update next_url for the loop
 
     logger.info(f"Finished fetching events for {username}. Total: {len(all_events)} from {pages_fetched} pages.")
     return all_events
@@ -179,13 +172,10 @@ def _parse_prs_from_items(pr_items_data: list, page_num: int) -> List[PullReques
             logger.warning(f"Skipping PR item due to TypeError on page {page_num}: {e}. Data: {pr_item_data}")
     return parsed_prs
 
+
 def _fetch_single_prs_page(
-    search_url: str,
-    headers: dict,
-    params: dict,
-    page_num: int,
-    username_for_context: str
-) -> tuple[Optional[List[PullRequestSimple]], bool, int]: # pr_list, has_more_pages_ind, total_count_from_page
+    search_url: str, headers: dict, params: dict, page_num: int, username_for_context: str
+) -> tuple[Optional[List[PullRequestSimple]], bool, int]:  # pr_list, has_more_pages_ind, total_count_from_page
     """Fetches a single page of PRs and returns PRs, an indicator for more pages, and total count."""
     logger.info(f"Fetching PRs page {page_num} from {search_url} with params: {params}")
     try:
@@ -211,7 +201,7 @@ def _fetch_single_prs_page(
         # And ensure there were items on the current page, as an empty last page is possible.
         has_more_github_side = bool(response.links.get("next", {}).get("url"))
         # If Link header says no more, or if items is empty (even if total_count > fetched_count due to eventual consistency)
-        if not items: # No items on this page, definitely no more from this path
+        if not items:  # No items on this page, definitely no more from this path
             has_more_github_side = False
 
         return parsed_page_prs, has_more_github_side, total_count_from_page
@@ -222,20 +212,16 @@ def _fetch_single_prs_page(
         else:
             logger.error(f"HTTP error for PR search page {page_num} (user: {username_for_context}): {e}")
         return None, False, 0
-    except requests.exceptions.RequestException as e: # Includes Timeout, ConnectionError etc.
+    except requests.exceptions.RequestException as e:  # Includes Timeout, ConnectionError etc.
         logger.error(f"Request error fetching PRs for {username_for_context} page {page_num}: {e}")
         return None, False, 0
-    except ValueError as e: # Includes JSONDecodeError
+    except ValueError as e:  # Includes JSONDecodeError
         logger.error(f"JSON decode error fetching PRs for {username_for_context} page {page_num}: {e}")
         return None, False, 0
 
+
 def fetch_user_pull_requests(
-    username: str,
-    search_query_type: str = "author",
-    token: Optional[str] = None,
-    max_pages: int = 5,
-    sort: str = "updated",
-    order: str = "desc"
+    username: str, search_query_type: str = "author", token: Optional[str] = None, max_pages: int = 5, sort: str = "updated", order: str = "desc"
 ) -> Optional[List[PullRequestSimple]]:
     """Fetch pull requests associated with a user via the GitHub Search API.
 
@@ -262,8 +248,8 @@ def fetch_user_pull_requests(
 
     all_pull_requests: List[PullRequestSimple] = []
     pages_fetched = 0
-    current_page_num_for_api = 1 # Search API uses 1-based indexing for 'page' param
-    has_more_pages = True # Assume there are pages to fetch initially
+    current_page_num_for_api = 1  # Search API uses 1-based indexing for 'page' param
+    has_more_pages = True  # Assume there are pages to fetch initially
 
     logger.info(f"Fetching PRs for {username} ({search_query_type}). Query: '{query}'. Max pages: {max_pages}")
 
@@ -272,19 +258,15 @@ def fetch_user_pull_requests(
             "q": query,
             "sort": sort,
             "order": order,
-            "per_page": "100", # Max allowed by GitHub Search API
-            "page": str(current_page_num_for_api)
+            "per_page": "100",  # Max allowed by GitHub Search API
+            "page": str(current_page_num_for_api),
         }
 
         page_prs, has_more_from_page, total_count = _fetch_single_prs_page(
-            search_url=search_url,
-            headers=headers,
-            params=params,
-            page_num=current_page_num_for_api,
-            username_for_context=username
+            search_url=search_url, headers=headers, params=params, page_num=current_page_num_for_api, username_for_context=username
         )
 
-        if page_prs is None: # Critical error fetching page
+        if page_prs is None:  # Critical error fetching page
             logger.error(f"Halting PR fetch for {username} due to error on page {current_page_num_for_api}.")
             return None
 
@@ -299,7 +281,7 @@ def fetch_user_pull_requests(
         if total_count > 0 and len(all_pull_requests) >= total_count:
             has_more_pages = False
 
-        if not page_prs and pages_fetched == 1 and total_count == 0: # No items on first page itself
+        if not page_prs and pages_fetched == 1 and total_count == 0:  # No items on first page itself
             logger.info(f"No PRs found for query: {query} on the first page.")
             # has_more_pages will be False, loop will terminate
 
@@ -326,13 +308,13 @@ def find_todays_commits(username: str, token: Optional[str] = None, max_event_pa
         logger.info(f"No public events found for '{username}' or failed to fetch.")
         return False
 
-    return find_todays_push_events(user_events, today_utc) # Reuse existing logic
+    return find_todays_push_events(user_events, today_utc)  # Reuse existing logic
 
 
 def find_todays_prs(
     username: str,
     token: Optional[str] = None,
-    max_pr_pages: int = 2 # PR search can be extensive; limit default pages
+    max_pr_pages: int = 2,  # PR search can be extensive; limit default pages
 ) -> bool:
     """Checks for PRs created or updated today by/involving the user.
 
@@ -351,11 +333,11 @@ def find_todays_prs(
     # The `fetch_user_pull_requests` already sorts by updated desc by default.
     prs = fetch_user_pull_requests(
         username=username,
-        search_query_type="involves", # Broad search for user involvement
+        search_query_type="involves",  # Broad search for user involvement
         token=token,
         max_pages=max_pr_pages,
         sort="updated",
-        order="desc"
+        order="desc",
     )
 
     if not prs:

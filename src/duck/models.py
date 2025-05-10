@@ -57,13 +57,16 @@ class GitHubEvent(BaseModel):
         allow_population_by_field_name = True
         extra = "ignore"  # Ignore extra fields from API response
 
+
 # Placeholder for future models (e.g., CommitDetails, PRDetails, InsightReport)
+
 
 class CommitAuthor(BaseModel):
     """Model for the author of a commit (simplified)."""
+
     name: Optional[str] = None
     email: Optional[str] = None
-    date: Optional[datetime] = None # Commit date by the author
+    date: Optional[datetime] = None  # Commit date by the author
 
     @classmethod
     @validator("date", pre=True)
@@ -92,10 +95,12 @@ class CommitAuthor(BaseModel):
             return value
         raise ValueError(f"Invalid datetime format for date: {value}")
 
+
 class CommitDetails(BaseModel):
     """Model for the details of a commit (the 'commit' object in API response)."""
+
     author: Optional[CommitAuthor] = None
-    committer: Optional[CommitAuthor] = None # Committer can be different from author
+    committer: Optional[CommitAuthor] = None  # Committer can be different from author
     message: Optional[str] = None
 
 
@@ -111,19 +116,23 @@ class Commit(BaseModel):
         author: The user object for the author, if available.
         committer: The user object for the committer, if available.
     """
+
     sha: str
     html_url: Optional[str] = Field(None, alias="html_url")
     commit: CommitDetails
-    author: Optional[Dict[str, Any]] = None # User object for the author, if available
-    committer: Optional[Dict[str, Any]] = None # User object for the committer, if available
+    author: Optional[Dict[str, Any]] = None  # User object for the author, if available
+    committer: Optional[Dict[str, Any]] = None  # User object for the committer, if available
 
     class Config:
         """Configuration for the Commit model."""
+
         allow_population_by_field_name = True
         extra = "ignore"
 
+
 class Repository(BaseModel):
     """Model for a GitHub repository (simplified)."""
+
     id: int
     name: str
     full_name: str = Field(alias="full_name")
@@ -134,24 +143,31 @@ class Repository(BaseModel):
 
     class Config:
         """Configuration for the Repository model."""
+
         allow_population_by_field_name = True
         extra = "ignore"
 
+
 # --- Pull Request Models ---
+
 
 class PullRequestUser(BaseModel):
     """Simplified model for a user associated with a Pull Request (e.g., author, assignee)."""
+
     login: str
     id: int
     html_url: Optional[str] = Field(None, alias="html_url")
 
     class Config:
         """Configuration for the PullRequestUser model."""
+
         allow_population_by_field_name = True
         extra = "ignore"
 
+
 class PullRequestRepoInfo(BaseModel):
     """Simplified model for repository information within a Pull Request item from search."""
+
     id: int
     name: str
     full_name: str
@@ -159,25 +175,28 @@ class PullRequestRepoInfo(BaseModel):
 
     class Config:
         """Configuration for the PullRequestRepoInfo model."""
+
         extra = "ignore"
+
 
 class PullRequestSimple(BaseModel):
     """Model for a Pull Request, typically from a search result.
 
     The GitHub search API returns PRs as "issues" with a "pull_request" field.
     """
+
     id: int
     html_url: str = Field(alias="html_url")
     number: int
     title: str
     state: str  # "open", "closed"
     locked: bool
-    user: Optional[PullRequestUser] = None # The author of the PR
+    user: Optional[PullRequestUser] = None  # The author of the PR
     body: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     closed_at: Optional[datetime] = None
-    merged_at: Optional[datetime] = None # This might be part of a separate 'pull_request' object in search result
+    merged_at: Optional[datetime] = None  # This might be part of a separate 'pull_request' object in search result
 
     # Fields often included directly in search results for PRs
     assignees: Optional[List[PullRequestUser]] = []
@@ -214,5 +233,6 @@ class PullRequestSimple(BaseModel):
 
     class Config:
         """Configuration for the PullRequestSimple model."""
+
         allow_population_by_field_name = True
         extra = "ignore"

@@ -92,12 +92,7 @@ def send_email(
     return False
 
 
-def generate_email_html(
-    username: str,
-    activity_message: str,
-    template_path: str,
-    output_path: str | None
-) -> str | None:
+def generate_email_html(username: str, activity_message: str, template_path: str, output_path: str | None) -> str | None:
     """Generate the HTML email content.
 
     Args:
@@ -121,7 +116,7 @@ def generate_email_html(
         return None
 
     # Get current date and year
-    now = datetime.datetime.now(datetime.timezone.utc) # Use timezone-aware datetime
+    now = datetime.datetime.now(datetime.timezone.utc)  # Use timezone-aware datetime
     date_str = now.strftime("%Y-%m-%d")
     year = now.strftime("%Y")
 
@@ -141,22 +136,18 @@ def generate_email_html(
             logger.info(f"Successfully generated email content and saved to {output_path_obj}")
         except Exception as e:
             logger.error(f"Error writing output file to {output_path_obj}: {e}")
-            return None # Return None on failure to write file
+            return None  # Return None on failure to write file
     else:
         logger.info("Successfully generated email content in memory.")
 
-    return html # Return the generated HTML content
+    return html  # Return the generated HTML content
 
 
 def main():
     """Main entry point for the script."""
     parser = argparse.ArgumentParser(description="Generate GitHub activity reminder email")
     parser.add_argument("--username", required=True, help="GitHub username")
-    parser.add_argument(
-        "--message",
-        required=True,
-        help="The main activity status message to include in the email (will replace {{ACTIVITY_MESSAGE}})."
-    )
+    parser.add_argument("--message", required=True, help="The main activity status message to include in the email (will replace {{ACTIVITY_MESSAGE}}).")
     parser.add_argument("--template", default=None, help="Path to HTML template")
     parser.add_argument("--output", default=None, help="Path for output HTML file (optional, if not sending directly)")
 
@@ -175,18 +166,13 @@ def main():
     args = parser.parse_args()
 
     if args.send:
-        required_send_args = [
-            args.recipient, args.sender, args.subject, args.smtp_host, args.smtp_port
-        ]
+        required_send_args = [args.recipient, args.sender, args.subject, args.smtp_host, args.smtp_port]
         if not all(required_send_args):
-            parser.error(
-                "If --send is used, --recipient, --sender, --subject, --smtp-host, and --smtp-port are required."
-            )
+            parser.error("If --send is used, --recipient, --sender, --subject, --smtp-host, and --smtp-port are required.")
         if not (args.smtp_use_ssl or args.smtp_use_starttls):
             parser.error("If --send is used, either --smtp-use-ssl or --smtp-use-starttls must be specified.")
         if args.smtp_use_ssl and args.smtp_use_starttls:
             parser.error("Cannot use both --smtp-use-ssl and --smtp-use-starttls.")
-
 
     # Default paths if not specified
     template_file_path = Path(args.template) if args.template else Path(__file__).parent.parent / "templates" / "commit-reminder.html"
@@ -198,14 +184,14 @@ def main():
         args.username,
         args.message,
         str(template_file_path),
-        str(output_file_path) if args.output else None # Pass output_path only if specified
+        str(output_file_path) if args.output else None,  # Pass output_path only if specified
     )
 
     if html_content_for_sending and args.send:
         logger.info(f"Proceeding to send email to {args.recipient}")
         success = send_email(
             subject=args.subject,
-            html_body=html_content_for_sending, # Use the returned HTML content
+            html_body=html_content_for_sending,  # Use the returned HTML content
             sender_email=args.sender,
             recipient_email=args.recipient,
             smtp_host=args.smtp_host,
@@ -222,7 +208,7 @@ def main():
         sys.exit(1)
     elif args.send is False:
         logger.info(f"--send flag not provided. Email not sent. HTML content {'saved to ' + str(output_file_path) if args.output else 'generated but not saved.'}")
-    else: # Should not be reached if logic is correct
+    else:  # Should not be reached if logic is correct
         logger.info(f"Email not sent. HTML content available {'at ' + str(output_file_path) if args.output else '(not saved)'}. Send flag: {args.send}")
 
 
