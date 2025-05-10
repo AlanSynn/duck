@@ -10,7 +10,7 @@ license = {file = "LICENSE"}
 requires-python = ">=3.9"
 dependencies = [
     "requests>=2.25.0",
-    "pydantic>=1.8,<2.0",
+    "pydantic>=1.8,<3.0",
     "toml>=0.10.2",
     # "httpx>=0.23.0", # Removed as no longer used by core functions
 ]
