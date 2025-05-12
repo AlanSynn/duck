@@ -4,8 +4,8 @@
 # - USERNAME
 # - GITHUB_TOKEN (optional, for fetching private activity if applicable by duck)
 # - EMAIL_RECIPIENT
-# - SMTP_USER (for mailx)
-# - SMTP_PASSWORD (for mailx)
+# - SMTP_USER (for email)
+# - SMTP_PASSWORD (for email)
 
 set -e # Re-enable set -e
 # set -x # Removed for normal operation
@@ -13,6 +13,9 @@ set -e # Re-enable set -e
 # Determine script directory robustly
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 REPO_ROOT=$(dirname "$SCRIPT_DIR")
+
+# Create tmp directory if it doesn't exist
+mkdir -p "$REPO_ROOT/tmp"
 
 # Source .env file from REPO_ROOT if it exists
 ENV_FILE="$REPO_ROOT/.env"
@@ -33,7 +36,7 @@ if [ -z "$USERNAME" ]; then
 fi
 
 if [ -z "$EMAIL_RECIPIENT" ]; then
-  echo "Warning: EMAIL_RECIPIENT not set. Local email notifications via mailx will not be sent."
+  echo "Warning: EMAIL_RECIPIENT not set. Email notifications will not be sent."
 fi
 
 # Construct duck command arguments
@@ -123,29 +126,34 @@ if [ $CHECK_RESULT -ne 0 ] && [ -n "$EMAIL_RECIPIENT" ]; then
   SMTP_PASSWORD_ARG=""
   if [ -n "$SMTP_PASSWORD" ]; then SMTP_PASSWORD_ARG="--smtp-password $SMTP_PASSWORD"; fi
 
-  PYTHON_CMD="python3 \"$SCRIPT_DIR/generate_email.py\""
-  PYTHON_CMD="$PYTHON_CMD --send"
-  PYTHON_CMD="$PYTHON_CMD --username \"$USERNAME\""
-  PYTHON_CMD="$PYTHON_CMD --message \"$ACTIVITY_MESSAGE_DEFAULT\""
-  PYTHON_CMD="$PYTHON_CMD --recipient \"$EMAIL_RECIPIENT\""
-  PYTHON_CMD="$PYTHON_CMD --sender \"${SMTP_SENDER:-$SMTP_SENDER_DEFAULT}\""
-  PYTHON_CMD="$PYTHON_CMD --subject \"${EMAIL_SUBJECT:-$EMAIL_SUBJECT_DEFAULT}\""
-  PYTHON_CMD="$PYTHON_CMD --smtp-host \"$SMTP_HOST_TO_USE\""
-  PYTHON_CMD="$PYTHON_CMD --smtp-port \"$SMTP_PORT_TO_USE\""
-  if [ -n "$SMTP_USER_ARG" ]; then PYTHON_CMD="$PYTHON_CMD $SMTP_USER_ARG"; fi
-  if [ -n "$SMTP_PASSWORD_ARG" ]; then PYTHON_CMD="$PYTHON_CMD $SMTP_PASSWORD_ARG"; fi # Be careful with logging passwords
-  if [ -n "$SSL_FLAG" ]; then PYTHON_CMD="$PYTHON_CMD $SSL_FLAG"; fi
-  if [ -n "$STARTTLS_FLAG" ]; then PYTHON_CMD="$PYTHON_CMD $STARTTLS_FLAG"; fi
-  PYTHON_CMD="$PYTHON_CMD --output \"$REPO_ROOT/tmp/activity-reminder-output.html\""
+  OUTPUT_PATH="$REPO_ROOT/tmp/activity-reminder-output.html"
 
-  echo "Executing Python email script with command:"
-  # Mask password if present for logging to console
-  LOG_CMD=$(echo "$PYTHON_CMD" | sed -E 's/--smtp-password [^ ]+/--smtp-password ******/g')
+  # Execute generate_email.py directly without eval
+  echo "Executing Python email script..."
+  # Mask password for logging
+  LOG_CMD="python3 \"$SCRIPT_DIR/generate_email.py\" --send --username \"$USERNAME\" --message \"$ACTIVITY_MESSAGE_DEFAULT\" --recipient \"$EMAIL_RECIPIENT\" --sender \"${SMTP_SENDER:-$SMTP_SENDER_DEFAULT}\" --subject \"${EMAIL_SUBJECT:-$EMAIL_SUBJECT_DEFAULT}\" --smtp-host \"$SMTP_HOST_TO_USE\" --smtp-port \"$SMTP_PORT_TO_USE\" $SMTP_USER_ARG --smtp-password ****** $SSL_FLAG $STARTTLS_FLAG --output \"$OUTPUT_PATH\""
   echo "$LOG_CMD"
 
-  eval "$PYTHON_CMD"
+  # Use the GitHub Actions environment variable to signal success
+  python3 "$SCRIPT_DIR/generate_email.py" \
+    --send \
+    --username "$USERNAME" \
+    --message "$ACTIVITY_MESSAGE_DEFAULT" \
+    --recipient "$EMAIL_RECIPIENT" \
+    --sender "${SMTP_SENDER:-$SMTP_SENDER_DEFAULT}" \
+    --subject "${EMAIL_SUBJECT:-$EMAIL_SUBJECT_DEFAULT}" \
+    --smtp-host "$SMTP_HOST_TO_USE" \
+    --smtp-port "$SMTP_PORT_TO_USE" \
+    ${SMTP_USER_ARG} \
+    ${SMTP_PASSWORD_ARG} \
+    ${SSL_FLAG} \
+    ${STARTTLS_FLAG} \
+    --output "$OUTPUT_PATH"
 
-  # No need for mailx block anymore
+  # If we reach here, the email was sent successfully
+  if [ "${GITHUB_ENV:-}" != "" ]; then
+    echo "EMAIL_SENT=true" >> $GITHUB_ENV
+  fi
 
 elif [ $CHECK_RESULT -eq 0 ]; then
   echo "Activity found for $USERNAME. No notification needed."
