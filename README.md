@@ -10,8 +10,8 @@ DUCK is a simple Python tool designed to help you maintain your GitHub activity 
 
 *   Checks for public commits made by the user on the current day.
 *   Checks for public pull requests involving the user (created, commented on, merged, etc.) that were active on the current day.
-*   Sends an email notification if no activity is detected.
-*   Configurable via environment variables (for local use, typically through a `.env` file).
+*   Sends a beautifully formatted HTML email notification if no activity is detected.
+*   Configurable via environment variables or TOML configuration file.
 *   Includes a GitHub Actions workflow for automated daily checks.
 
 ## Setup and Installation
@@ -103,9 +103,31 @@ This repository includes a GitHub Actions workflow defined in `.github/workflows
 1.  Checks out the repository.
 2.  Sets up Python and installs dependencies.
 3.  Runs the `duck` command to check for activity.
-4.  If the `duck` command indicates no activity (by exiting with a non-zero status), the workflow proceeds to:
-    a.  Generate an HTML email body using `scripts/generate_email.py`.
-    b.  Send the email using the `dawidd6/action-send-mail@v5` action.
+4.  If no activity is found, sends a notification email using the built-in email generator.
+
+### Email Notifications
+
+DUCK includes a robust email notification system that sends beautifully styled HTML emails when no commits are detected. The email system:
+
+- Generates modern, responsive HTML emails with clear calls to action
+- Works with most SMTP providers, including Gmail
+- Can be used both in GitHub Actions and for local notifications
+- Includes tests to ensure reliable operation
+
+The email content is generated dynamically using the `scripts/generate_email.py` script, which can be used directly if needed:
+
+```bash
+python scripts/generate_email.py --username "YourUsername" --message "Your message" --output "output.html"
+```
+
+For sending emails, you can use the `--send` flag along with SMTP configuration parameters:
+
+```bash
+python scripts/generate_email.py --send --username "YourUsername" --message "Your message" \
+  --recipient "recipient@example.com" --sender "sender@example.com" \
+  --smtp-host "smtp.example.com" --smtp-port "587" --smtp-use-starttls \
+  --smtp-user "yourusername" --smtp-password "yourpassword"
+```
 
 **Configuration for GitHub Actions:**
 The GitHub Actions workflow requires the following secrets to be configured in your repository settings (`Settings > Secrets and variables > Actions`):
@@ -116,12 +138,42 @@ The GitHub Actions workflow requires the following secrets to be configured in y
 *   `SMTP_PASSWORD`: Your SMTP password (e.g., your Gmail App Password).
 *   `GITHUB_TOKEN`: (Optional but recommended for Actions) A GitHub Personal Access Token with `public_repo` and `read:user` scopes if you want to ensure reliable API access, especially for accounts with a lot of activity or to access event details that might require it. The default `GITHUB_TOKEN` provided by Actions might have limitations for `/users/.../events` for some users/cases.
 
-The SMTP server details (host, port, SSL/TLS) for the GitHub Action are configured directly within the `commit-check.yml` workflow file (currently defaults to Gmail settings).
+## Configuration Options
 
-## Configuration Summary
+DUCK supports multiple configuration methods:
 
-*   **Local execution** (`scripts/check_and_notify.sh`): Primarily configured via the `.env` file in the project root.
-*   **GitHub Actions workflow**: Configured via Repository Secrets and settings within the `.github/workflows/commit-check.yml` file.
+1. **Environment Variables**: Set variables directly or through a `.env` file
+2. **TOML Configuration**: Create a `config.toml` file in the project root with the following structure:
+
+```toml
+[github]
+username = "YourGitHubUsername"
+token = "optional_github_token"
+
+[email]
+recipient = "youremail@example.com"
+subject = "DUCK: No GitHub Activity Today!"
+
+[smtp]
+host = "smtp.gmail.com"
+port = 587
+user = "your_sending_email@gmail.com"
+password = "your_app_password"
+use_starttls = true
+use_ssl = false
+```
+
+Environment variables always take precedence over TOML settings.
+
+## How Email Notifications Work
+
+When no GitHub activity is detected:
+1. The `check_and_notify.sh` script detects the absence of activity
+2. It calls the `generate_email.py` script which:
+   - Creates a responsive HTML email template
+   - Sends the email via SMTP if sending is enabled
+   - Saves the generated HTML to a file for backup purposes
+3. If the built-in sender fails, a backup plain-text email is sent via GitHub Actions
 
 ---
 
