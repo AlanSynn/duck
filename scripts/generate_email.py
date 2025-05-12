@@ -1,215 +1,260 @@
 #!/usr/bin/env python3
-"""Generate HTML email content for GitHub activity reminders and optionally send it.
+"""DUCK Email Notification Generator.
 
-This script takes the HTML template, replaces placeholders with actual values,
-and can send the resulting HTML email using SMTP.
+Generates and optionally sends HTML email notifications when no GitHub activity is detected.
 """
 
 import argparse
-import datetime
 import logging
-import os
 import smtplib
 import sys
+from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
+from typing import Any, Dict
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
 
 
-def send_email(
-    subject: str,
-    html_body: str,
-    sender_email: str,
-    recipient_email: str,
-    smtp_host: str,
-    smtp_port: int,
-    smtp_user: str | None,
-    smtp_password: str | None,
-    use_ssl: bool,
-    use_starttls: bool,
-) -> bool:
-    """Send an email using SMTP.
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Generate and send activity reminder email")
+
+    # Email content options
+    parser.add_argument("--username", required=True, help="GitHub username")
+    parser.add_argument("--message", required=True, help="Notification message")
+    parser.add_argument("--recipient", help="Email recipient")
+    parser.add_argument("--sender", help="Email sender address")
+    parser.add_argument("--subject", default="DUCK: No GitHub Activity Today!", help="Email subject")
+
+    # SMTP settings
+    parser.add_argument("--smtp-host", default="smtp.gmail.com", help="SMTP server host")
+    parser.add_argument("--smtp-port", default="587", help="SMTP server port")
+    parser.add_argument("--smtp-user", help="SMTP username")
+    parser.add_argument("--smtp-password", help="SMTP password")
+    parser.add_argument("--smtp-use-ssl", action="store_true", help="Use SSL for SMTP connection")
+    parser.add_argument("--smtp-use-starttls", action="store_true", help="Use STARTTLS for SMTP connection")
+
+    # Output options
+    parser.add_argument("--output", help="Output HTML file path")
+    parser.add_argument("--send", action="store_true", help="Send email directly")
+
+    return parser.parse_args()
+
+
+def generate_html_email(username: str, message: str) -> str:
+    """Generate HTML email content.
 
     Args:
-        subject: Email subject.
-        html_body: HTML content of the email.
-        sender_email: Email address of the sender.
-        recipient_email: Email address of the recipient.
-        smtp_host: SMTP server hostname or IP address.
-        smtp_port: SMTP server port.
-        smtp_user: Username for SMTP authentication (optional).
-        smtp_password: Password for SMTP authentication (optional).
-        use_ssl: Whether to use SSL from the beginning of the connection.
-        use_starttls: Whether to upgrade the connection to TLS using STARTTLS.
+        username: GitHub username
+        message: Notification message
 
     Returns:
-        True if the email was sent successfully, False otherwise.
+        HTML content as string
+    """
+    current_date = datetime.now().strftime("%Y-%m-%d")
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DUCK: Activity Reminder</title>
+        <style>
+            body {{
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #f9f9f9;
+            }}
+            .container {{
+                background-color: #ffffff;
+                border-radius: 8px;
+                padding: 30px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }}
+            .header {{
+                text-align: center;
+                margin-bottom: 20px;
+            }}
+            .logo {{
+                font-size: 2.5em;
+                font-weight: bold;
+                color: #e74c3c;
+                margin-bottom: 10px;
+            }}
+            h1 {{
+                color: #2c3e50;
+                margin-top: 0;
+            }}
+            .date {{
+                color: #7f8c8d;
+                font-style: italic;
+                margin-bottom: 25px;
+                text-align: center;
+            }}
+            .content {{
+                margin-bottom: 30px;
+            }}
+            .message {{
+                font-size: 1.1em;
+                background-color: #f8f9fa;
+                padding: 15px;
+                border-left: 4px solid #e74c3c;
+                margin-bottom: 20px;
+            }}
+            .cta {{
+                text-align: center;
+                margin: 30px 0;
+            }}
+            .button {{
+                display: inline-block;
+                background-color: #e74c3c;
+                color: white;
+                padding: 12px 25px;
+                text-decoration: none;
+                border-radius: 4px;
+                font-weight: bold;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                font-size: 0.9em;
+            }}
+            .footer {{
+                text-align: center;
+                font-size: 0.8em;
+                color: #95a5a6;
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid #ecf0f1;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="logo">DUCK</div>
+                <h1>GitHub Activity Reminder</h1>
+            </div>
+            <div class="date">
+                {current_date}
+            </div>
+            <div class="content">
+                <p>Hello @{username},</p>
+                <div class="message">
+                    {message}
+                </div>
+                <p>Maintaining a consistent GitHub contribution streak is important for:</p>
+                <ul>
+                    <li>Building your developer portfolio</li>
+                    <li>Staying engaged with your projects</li>
+                    <li>Demonstrating your coding consistency</li>
+                    <li>Learning and growing your skills daily</li>
+                </ul>
+            </div>
+            <div class="cta">
+                <a href="https://github.com/{username}" class="button">View My GitHub Profile</a>
+            </div>
+            <div class="footer">
+                <p>This is an automated message from DUCK (Daily User Commit Keeper).</p>
+                <p>© {datetime.now().year} DUCK - Stay Committed</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return html
+
+
+def send_email(recipient: str, sender: str, subject: str, html_content: str, smtp_config: Dict[str, Any]) -> bool:
+    """Send HTML email via SMTP.
+
+    Args:
+        recipient: Email recipient address
+        sender: Email sender address
+        subject: Email subject
+        html_content: HTML email content
+        smtp_config: Dictionary with SMTP configuration
+
+    Returns:
+        Success status as boolean
     """
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = sender_email
-    msg["To"] = recipient_email
+    msg["From"] = sender
+    msg["To"] = recipient
 
-    # Attach HTML part
-    part = MIMEText(html_body, "html")
+    part = MIMEText(html_content, "html")
     msg.attach(part)
 
     try:
-        logger.info(f"Attempting to send email to {recipient_email} via {smtp_host}:{smtp_port}")
-        if use_ssl:
-            server = smtplib.SMTP_SSL(smtp_host, smtp_port)
+        if smtp_config.get("use_ssl", False):
+            server = smtplib.SMTP_SSL(smtp_config["host"], int(smtp_config["port"]))
         else:
-            server = smtplib.SMTP(smtp_host, smtp_port)
+            server = smtplib.SMTP(smtp_config["host"], int(smtp_config["port"]))
 
-        if use_starttls:
+        if smtp_config.get("use_starttls", False):
             server.starttls()
 
-        if smtp_user and smtp_password:
-            server.login(smtp_user, smtp_password)
+        if smtp_config.get("user") and smtp_config.get("password"):
+            server.login(smtp_config["user"], smtp_config["password"])
 
-        server.sendmail(sender_email, recipient_email, msg.as_string())
+        server.sendmail(sender, recipient, msg.as_string())
         server.quit()
-        logger.info("Email sent successfully.")
+        logger.info(f"Successfully sent email to {recipient}")
         return True
-    except smtplib.SMTPAuthenticationError as e:
-        logger.error(f"SMTP Authentication Error: {e}. Check credentials for {smtp_user}.")
-    except smtplib.SMTPServerDisconnected as e:
-        logger.error(f"SMTP Server Disconnected: {e}. Check server address and port.")
-    except smtplib.SMTPConnectError as e:
-        logger.error(f"SMTP Connect Error: {e}. Could not connect to {smtp_host}:{smtp_port}.")
-    except smtplib.SMTPException as e:
-        logger.error(f"SMTP Error: {e}")
+
     except Exception as e:
-        logger.error(f"An unexpected error occurred while sending email: {e}")
-    return False
-
-
-def generate_email_html(username: str, activity_message: str, template_path: str, output_path: str | None) -> str | None:
-    """Generate the HTML email content.
-
-    Args:
-        username: The GitHub username to insert into the template.
-        activity_message: The message describing the activity status (or lack thereof).
-        template_path: Path to the HTML template file.
-        output_path: Path where the generated HTML should be saved (optional).
-
-    Returns:
-        Generated HTML content or None if output_path is None (just for content).
-    """
-    # Read the template
-    try:
-        with open(template_path, "r", encoding="utf-8") as f:
-            template = f.read()
-    except FileNotFoundError:
-        logger.error(f"Template file not found at {template_path}")
-        return None
-    except Exception as e:
-        logger.error(f"Error reading template file: {e}")
-        return None
-
-    # Get current date and year
-    now = datetime.datetime.now(datetime.timezone.utc)  # Use timezone-aware datetime
-    date_str = now.strftime("%Y-%m-%d")
-    year = now.strftime("%Y")
-
-    # Replace placeholders
-    html = template.replace("{{username}}", username)
-    html = html.replace("{{date}}", date_str)
-    html = html.replace("{{year}}", year)
-    html = html.replace("{{ACTIVITY_MESSAGE}}", activity_message)
-
-    # Write the output if output_path is provided
-    if output_path:
-        output_path_obj = Path(output_path)
-        os.makedirs(output_path_obj.parent, exist_ok=True)
-        try:
-            with open(output_path_obj, "w", encoding="utf-8") as f:
-                f.write(html)
-            logger.info(f"Successfully generated email content and saved to {output_path_obj}")
-        except Exception as e:
-            logger.error(f"Error writing output file to {output_path_obj}: {e}")
-            return None  # Return None on failure to write file
-    else:
-        logger.info("Successfully generated email content in memory.")
-
-    return html  # Return the generated HTML content
+        logger.error(f"Failed to send email: {e!s}")
+        return False
 
 
 def main():
-    """Main entry point for the script."""
-    parser = argparse.ArgumentParser(description="Generate GitHub activity reminder email")
-    parser.add_argument("--username", required=True, help="GitHub username")
-    parser.add_argument("--message", required=True, help="The main activity status message to include in the email (will replace {{ACTIVITY_MESSAGE}}).")
-    parser.add_argument("--template", default=None, help="Path to HTML template")
-    parser.add_argument("--output", default=None, help="Path for output HTML file (optional, if not sending directly)")
+    """Main function to generate and optionally send the email."""
+    args = parse_args()
 
-    # Arguments for sending email
-    parser.add_argument("--send", action="store_true", help="Send the email after generating it.")
-    parser.add_argument("--recipient", help="Recipient email address (required if --send).")
-    parser.add_argument("--sender", help="Sender email address (required if --send).")
-    parser.add_argument("--subject", help="Email subject (required if --send).")
-    parser.add_argument("--smtp-host", help="SMTP server host (required if --send).")
-    parser.add_argument("--smtp-port", type=int, help="SMTP server port (required if --send).")
-    parser.add_argument("--smtp-user", help="SMTP username (optional).")
-    parser.add_argument("--smtp-password", help="SMTP password (optional, use environment variables for security).")
-    parser.add_argument("--smtp-use-ssl", action="store_true", help="Use SSL for SMTP connection (e.g., port 465).")
-    parser.add_argument("--smtp-use-starttls", action="store_true", help="Use STARTTLS for SMTP connection (e.g., port 587).")
+    # Generate HTML email content
+    html_content = generate_html_email(args.username, args.message)
 
-    args = parser.parse_args()
+    # Save to file if output path provided
+    if args.output:
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if args.send:
-        required_send_args = [args.recipient, args.sender, args.subject, args.smtp_host, args.smtp_port]
-        if not all(required_send_args):
-            parser.error("If --send is used, --recipient, --sender, --subject, --smtp-host, and --smtp-port are required.")
-        if not (args.smtp_use_ssl or args.smtp_use_starttls):
-            parser.error("If --send is used, either --smtp-use-ssl or --smtp-use-starttls must be specified.")
-        if args.smtp_use_ssl and args.smtp_use_starttls:
-            parser.error("Cannot use both --smtp-use-ssl and --smtp-use-starttls.")
+        with open(output_path, "w") as f:
+            f.write(html_content)
+        logger.info(f"HTML email content saved to {args.output}")
 
-    # Default paths if not specified
-    template_file_path = Path(args.template) if args.template else Path(__file__).parent.parent / "templates" / "commit-reminder.html"
-    output_file_path = Path(args.output) if args.output else Path(__file__).parent.parent / "tmp" / "activity-reminder-output.html"
+    # Send email if requested
+    if args.send and args.recipient:
+        smtp_config = {
+            "host": args.smtp_host,
+            "port": args.smtp_port,
+            "use_ssl": args.smtp_use_ssl,
+            "use_starttls": args.smtp_use_starttls,
+            "user": args.smtp_user,
+            "password": args.smtp_password,
+        }
 
-    # If sending, output_path for generate_email_html can be optional if we don't want to force saving a file
-    # However, the shell script currently passes it, so we keep it. For direct Python calls, it could be None.
-    html_content_for_sending = generate_email_html(
-        args.username,
-        args.message,
-        str(template_file_path),
-        str(output_file_path) if args.output else None,  # Pass output_path only if specified
-    )
-
-    if html_content_for_sending and args.send:
-        logger.info(f"Proceeding to send email to {args.recipient}")
         success = send_email(
+            recipient=args.recipient,
+            sender=args.sender or args.smtp_user or "DUCK@noreply.com",
             subject=args.subject,
-            html_body=html_content_for_sending,  # Use the returned HTML content
-            sender_email=args.sender,
-            recipient_email=args.recipient,
-            smtp_host=args.smtp_host,
-            smtp_port=args.smtp_port,
-            smtp_user=args.smtp_user,
-            smtp_password=args.smtp_password,
-            use_ssl=args.smtp_use_ssl,
-            use_starttls=args.smtp_use_starttls,
+            html_content=html_content,
+            smtp_config=smtp_config,
         )
+
         if not success:
-            logger.error("Email sending failed. The HTML content was saved to a file if --output was provided.")
-    elif not html_content_for_sending:
-        logger.error("HTML content generation failed or was not returned. Cannot send email.")
-        sys.exit(1)
-    elif args.send is False:
-        logger.info(f"--send flag not provided. Email not sent. HTML content {'saved to ' + str(output_file_path) if args.output else 'generated but not saved.'}")
-    else:  # Should not be reached if logic is correct
-        logger.info(f"Email not sent. HTML content available {'at ' + str(output_file_path) if args.output else '(not saved)'}. Send flag: {args.send}")
+            sys.exit(1)
 
 
 if __name__ == "__main__":
