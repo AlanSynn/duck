@@ -29,27 +29,22 @@ jobs:
         run: |
           uv pip install --system .
 
+      - name: Create tmp directory
+        run: mkdir -p tmp
+
       - name: Check for today's activity (commits/PRs)
         id: duck_check
         env:
-          USERNAME: ${{ secrets.USERNAME }}
+          USERNAME: ${{ secrets.GITHUB_USERNAME }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
         run: |
-          bash scripts/check_and_notify.sh
+          bash scripts/check_and_notify.sh || true
 
-      - name: Generate email content
-        if: ${{ failure() }}
-        run: |
-          python3 scripts/generate_email.py \
-            --username "${{ secrets.GITHUB_USERNAME }}" \
-            --message "No GitHub activity detected for today. Please make a commit or create a PR to maintain your streak!" \
-            --output tmp/activity-reminder-output.html
-
-      - name: Send notification if no activity
-        if: ${{ failure() }}
+      - name: Send notification if no activity (backup method)
+        if: ${{ env.EMAIL_SENT != 'true' && failure() }}
         uses: dawidd6/action-send-mail@v5
         with:
           server_address: smtp.gmail.com
@@ -57,11 +52,21 @@ jobs:
           secure: true
           username: ${{ secrets.SMTP_USER }}
           password: ${{ secrets.SMTP_PASSWORD }}
-
           subject: "DUCK: No GitHub Activity Today!"
           to: ${{ secrets.EMAIL_RECIPIENT }}
           from: DUCK Reminder <${{ secrets.SMTP_USER }}>
-          html_body: file://tmp/activity-reminder-output.html
+          body: |
+            Hello @${{ secrets.GITHUB_USERNAME }},
 
+            It looks like you haven't had any GitHub activity (commits or PRs) today.
+            Don't be a DUCK! Time to make some contributions.
+
+            Maintaining a consistent GitHub contribution streak is important for:
+            - Building your developer portfolio
+            - Staying engaged with your projects
+            - Demonstrating your coding consistency
+            - Learning and growing your skills daily
+
+            This is an automated message from DUCK (Daily User Commit Keeper).
           priority: high
           ignore_cert: false
