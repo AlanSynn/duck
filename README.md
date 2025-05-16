@@ -49,7 +49,7 @@ DUCK is a simple Python tool designed to help you maintain your GitHub activity 
 
     ```env
     # GitHub Configuration
-    GITHUB_USERNAME="YourGitHubUsername"
+    USERNAME="YourGitHubUsername"
     # GITHUB_TOKEN="your_github_personal_access_token" # Optional: For checking private activity if DUCK supports it and if needed.
 
     # Email Recipient
@@ -130,13 +130,30 @@ python scripts/generate_email.py --send --username "YourUsername" --message "You
 ```
 
 **Configuration for GitHub Actions:**
-The GitHub Actions workflow requires the following secrets to be configured in your repository settings (`Settings > Secrets and variables > Actions`):
+The GitHub Actions workflow requires several secrets to be configured in your repository settings. Follow these steps to add them:
 
-*   `GITHUB_USERNAME`: Your GitHub username.
+1.  Navigate to your GitHub repository.
+2.  Click on the **Settings** tab (usually located near the top of the repository page).
+3.  In the left sidebar, scroll down and click on **Secrets and variables**.
+4.  From the dropdown, select **Actions**.
+5.  You will see a section for "Repository secrets". Click the **New repository secret** button for each secret you need to add.
+
+The following secrets are required:
+
+*   `USERNAME`: Your GitHub username.
 *   `EMAIL_RECIPIENT`: The email address to send notifications to.
 *   `SMTP_USER`: Your SMTP username (e.g., your Gmail address).
 *   `SMTP_PASSWORD`: Your SMTP password (e.g., your Gmail App Password).
-*   `GITHUB_TOKEN`: (Optional but recommended for Actions) A GitHub Personal Access Token with `public_repo` and `read:user` scopes if you want to ensure reliable API access, especially for accounts with a lot of activity or to access event details that might require it. The default `GITHUB_TOKEN` provided by Actions might have limitations for `/users/.../events` for some users/cases.
+*   `GITHUB_TOKEN`: (Optional but recommended for Actions) A GitHub Personal Access Token.
+    *   **Permissions needed**: `public_repo` (to access public repository data) and `read:user` (to read user profile data).
+    *   **Why it's recommended**: Ensures reliable API access, especially for accounts with a lot of activity or to access event details that might require it. The default `GITHUB_TOKEN` provided by Actions might have limitations for `/users/.../events` for some users/cases.
+    *   To create a Personal Access Token (PAT):
+        1.  Go to your GitHub **Settings** (click your profile picture in the top-right corner).
+        2.  In the left sidebar, scroll down to **Developer settings**.
+        3.  Click on **Personal access tokens**, then **Tokens (classic)**.
+        4.  Click **Generate new token** (or **Generate new token (classic)**).
+        5.  Give your token a descriptive name, select the expiration, and check the `public_repo` and `read:user` scopes.
+        6.  Click **Generate token** and copy the token value immediately. You won't be able to see it again.
 
 ## Configuration Options
 
