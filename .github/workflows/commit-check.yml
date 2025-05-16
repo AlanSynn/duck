@@ -35,7 +35,7 @@ jobs:
       - name: Check for today's activity (commits/PRs)
         id: duck_check
         env:
-          USERNAME: ${{ secrets.GITHUB_USERNAME }}
+          USERNAME: ${{ secrets.USERNAME }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
@@ -56,7 +56,7 @@ jobs:
           to: ${{ secrets.EMAIL_RECIPIENT }}
           from: DUCK Reminder <${{ secrets.SMTP_USER }}>
           body: |
-            Hello @${{ secrets.GITHUB_USERNAME }},
+            Hello @${{ secrets.USERNAME }},
 
             It looks like you haven't had any GitHub activity (commits or PRs) today.
             Don't be a DUCK! Time to make some contributions.
