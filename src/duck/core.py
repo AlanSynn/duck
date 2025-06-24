@@ -5,7 +5,7 @@ fetch various types of user activity data, and perform initial processing.
 """
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
 import requests
@@ -137,6 +137,31 @@ def fetch_github_user_public_events(username: str, token: Optional[str] = None, 
     return all_events
 
 
+def find_push_events_in_date_range(events: Optional[List[GitHubEvent]], start_date: date, end_date: date) -> bool:
+    """Check if any PushEvents occurred within the given date range (inclusive).
+
+    Args:
+        events: A list of GitHub event objects, or None.
+        start_date: The start date of the range (inclusive).
+        end_date: The end date of the range (inclusive).
+
+    Returns:
+        True if a PushEvent from the date range is found, False otherwise.
+    """
+    if not events:
+        logger.info("No events provided for push event check.")
+        return False
+
+    logger.info(f"Processing {len(events)} events for commits between {start_date} and {end_date}.")
+    for event in events:
+        event_date = event.created_at.date()
+        if event.type == "PushEvent" and start_date <= event_date <= end_date:
+            logger.info(f"Found a PushEvent in date range: ID {event.id} at {event.created_at}")
+            return True
+    logger.info(f"No PushEvents found between {start_date} and {end_date}.")
+    return False
+
+
 def find_todays_push_events(events: Optional[List[GitHubEvent]], today_utc_date: date) -> bool:
     """Check if any PushEvents occurred on the given UTC date.
 
@@ -147,17 +172,7 @@ def find_todays_push_events(events: Optional[List[GitHubEvent]], today_utc_date:
     Returns:
         True if a PushEvent from today is found, False otherwise.
     """
-    if not events:
-        logger.info("No events provided for push event check.")
-        return False
-
-    logger.info(f"Processing {len(events)} events for commits on {today_utc_date}.")
-    for event in events:
-        if event.type == "PushEvent" and event.created_at.date() == today_utc_date:
-            logger.info(f"Found a PushEvent for today: ID {event.id} at {event.created_at}")
-            return True
-    logger.info(f"No PushEvents found for {today_utc_date}.")
-    return False
+    return find_push_events_in_date_range(events, today_utc_date, today_utc_date)
 
 
 def _parse_prs_from_items(pr_items_data: list, page_num: int) -> List[PullRequestSimple]:
@@ -289,6 +304,31 @@ def fetch_user_pull_requests(
     return all_pull_requests
 
 
+def find_commits_last_days(username: str, days: int = 3, token: Optional[str] = None, max_event_pages: int = 5) -> bool:
+    """Checks for any public commit events (PushEvents) by the user in the last N days.
+
+    Args:
+        username: The GitHub username.
+        days: Number of days to check back from today (default: 3).
+        token: An optional GitHub Personal Access Token.
+        max_event_pages: Maximum number of event pages to fetch.
+
+    Returns:
+        True if commit activity is found in the last N days, False otherwise.
+    """
+    logger.info(f"Checking for commits in the last {days} days for user '{username}'")
+    today_utc = datetime.now(timezone.utc).date()
+    start_date = today_utc - timedelta(days=days - 1)  # Include today in the range
+
+    user_events = fetch_github_user_public_events(username, token, max_pages=max_event_pages)
+
+    if not user_events:
+        logger.info(f"No public events found for '{username}' or failed to fetch.")
+        return False
+
+    return find_push_events_in_date_range(user_events, start_date, today_utc)
+
+
 def find_todays_commits(username: str, token: Optional[str] = None, max_event_pages: int = 5) -> bool:
     """Checks for any public commit events (PushEvents) by the user for the current UTC date.
 
@@ -311,23 +351,26 @@ def find_todays_commits(username: str, token: Optional[str] = None, max_event_pa
     return find_todays_push_events(user_events, today_utc)  # Reuse existing logic
 
 
-def find_todays_prs(
+def find_prs_last_days(
     username: str,
+    days: int = 3,
     token: Optional[str] = None,
     max_pr_pages: int = 2,  # PR search can be extensive; limit default pages
 ) -> bool:
-    """Checks for PRs created or updated today by/involving the user.
+    """Checks for PRs created or updated in the last N days by/involving the user.
 
     Args:
         username: The GitHub username.
+        days: Number of days to check back from today (default: 3).
         token: Optional GitHub Personal Access Token.
         max_pr_pages: Maximum number of PR pages to search.
 
     Returns:
-        True if relevant PR activity is found for today, False otherwise.
+        True if relevant PR activity is found in the last N days, False otherwise.
     """
-    logger.info(f"Checking for today's PRs involving user '{username}'")
+    logger.info(f"Checking for PRs in the last {days} days involving user '{username}'")
     today_utc_date = datetime.now(timezone.utc).date()
+    start_date = today_utc_date - timedelta(days=days - 1)  # Include today in the range
 
     # Search for PRs involving the user, updated recently.
     # The `fetch_user_pull_requests` already sorts by updated desc by default.
@@ -345,11 +388,32 @@ def find_todays_prs(
         return False
 
     for pr in prs:
-        # Check if PR was created today OR updated today.
+        # Check if PR was created in date range OR updated in date range.
         # PullRequestSimple model has created_at and updated_at as datetime objects.
-        if pr.created_at.date() == today_utc_date or pr.updated_at.date() == today_utc_date:
-            logger.info(f"Found PR #{pr.number} ('{pr.title}') active today (created: {pr.created_at.date()}, updated: {pr.updated_at.date()}).")
+        pr_created_date = pr.created_at.date()
+        pr_updated_date = pr.updated_at.date()
+
+        if start_date <= pr_created_date <= today_utc_date or start_date <= pr_updated_date <= today_utc_date:
+            logger.info(f"Found PR #{pr.number} ('{pr.title}') active in date range (created: {pr_created_date}, updated: {pr_updated_date}).")
             return True
 
-    logger.info(f"No PRs involving '{username}' found to be active today.")
+    logger.info(f"No PRs involving '{username}' found to be active in the last {days} days.")
     return False
+
+
+def find_todays_prs(
+    username: str,
+    token: Optional[str] = None,
+    max_pr_pages: int = 2,  # PR search can be extensive; limit default pages
+) -> bool:
+    """Checks for PRs created or updated today by/involving the user.
+
+    Args:
+        username: The GitHub username.
+        token: Optional GitHub Personal Access Token.
+        max_pr_pages: Maximum number of PR pages to search.
+
+    Returns:
+        True if relevant PR activity is found for today, False otherwise.
+    """
+    return find_prs_last_days(username, days=1, token=token, max_pr_pages=max_pr_pages)

@@ -40,7 +40,7 @@ if [ -z "$EMAIL_RECIPIENT" ]; then
 fi
 
 # Construct duck command arguments
-DUCK_ARGS="--user $USERNAME"
+DUCK_ARGS="--user $USERNAME --days 3"
 if [ -n "$GITHUB_TOKEN" ]; then
   DUCK_ARGS="$DUCK_ARGS --token $GITHUB_TOKEN"
 fi
@@ -94,8 +94,8 @@ if [ $CHECK_RESULT -ne 0 ] && [ -n "$EMAIL_RECIPIENT" ]; then
   USE_STARTTLS_DEFAULT=true # Set to true if your primary SMTP uses STARTTLS (e.g. port 587)
 
   SMTP_SENDER_DEFAULT="${SMTP_USER:-DUCKNotifier@example.com}" # Fallback if SMTP_USER not set
-  EMAIL_SUBJECT_DEFAULT="DUCK: No GitHub Activity Today!"
-  ACTIVITY_MESSAGE_DEFAULT="It looks like you haven't had any GitHub activity (commits or PRs) today. Don't be a DUCK! Time to make some contributions."
+  EMAIL_SUBJECT_DEFAULT="DUCK: No GitHub Activity in 3 Days!"
+  ACTIVITY_MESSAGE_DEFAULT="It looks like you haven't had any GitHub activity (commits or PRs) in the last 3 days. Don't be a DUCK! Time to make some contributions."
 
   # Use environment variables if set, otherwise use defaults
   SMTP_HOST_TO_USE="${SMTP_HOST:-$SMTP_HOST_DEFAULT}"

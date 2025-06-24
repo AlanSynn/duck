@@ -34,6 +34,13 @@ def mock_core_functions():
          patch("duck.cli.find_todays_prs", return_value=False) as mock_prs:
         yield {"commits": mock_commits, "prs": mock_prs}
 
+@pytest.fixture
+def mock_multi_day_functions():
+    """Fixture to mock the multi-day functions find_commits_last_days and find_prs_last_days."""
+    with patch("duck.cli.find_commits_last_days", return_value=False) as mock_commits, \
+         patch("duck.cli.find_prs_last_days", return_value=False) as mock_prs:
+        yield {"commits": mock_commits, "prs": mock_prs}
+
 
 # Basic command invocation tests
 
@@ -280,3 +287,64 @@ def test_verbosity_settings(verbose_args, expected_count, caplog):
             mock_setup_logging_no_user.assert_called_once()
             actual_verbose_value_no_user = mock_setup_logging_no_user.call_args[0][0]
             assert actual_verbose_value_no_user == 0 # Default verbosity count is 0
+
+
+# Test multi-day functionality
+def test_days_argument_three_days(mock_multi_day_functions, caplog):
+    """Test --days 3 argument uses multi-day functions."""
+    caplog.set_level(logging.WARNING)
+    mock_multi_day_functions["commits"].return_value = False
+    mock_multi_day_functions["prs"].return_value = False
+
+    test_env = {"GITHUB_USERNAME": "testuser"}
+    with patch.dict(cli.os.environ, test_env, clear=True):
+        exit_code = run_cli_main_and_get_code(["duck", "--days", "3"])
+
+    assert exit_code == EXIT_CODE_NO_ACTIVITY
+    assert "No commits or PRs found for 'testuser' in the last 3 days." in caplog.text
+    mock_multi_day_functions["commits"].assert_called_once_with(
+        "testuser", 3, None, max_event_pages=DEFAULT_MAX_EVENT_PAGES
+    )
+    mock_multi_day_functions["prs"].assert_called_once_with(
+        "testuser", 3, None, max_pr_pages=DEFAULT_MAX_PR_PAGES
+    )
+
+
+def test_days_argument_seven_days_with_activity(mock_multi_day_functions, caplog):
+    """Test --days 7 with activity found."""
+    caplog.set_level(logging.INFO)
+    mock_multi_day_functions["commits"].return_value = True
+    mock_multi_day_functions["prs"].return_value = False
+
+    test_env = {"GITHUB_USERNAME": "activeuser", "GITHUB_TOKEN": "token123"}
+    with patch.dict(cli.os.environ, test_env, clear=True):
+        exit_code = run_cli_main_and_get_code(["duck", "--days", "7"])
+
+    assert exit_code == EXIT_CODE_SUCCESS
+    assert "QUACK! Activity found for 'activeuser' in the last 7 days." in caplog.text
+    mock_multi_day_functions["commits"].assert_called_once_with(
+        "activeuser", 7, "token123", max_event_pages=DEFAULT_MAX_EVENT_PAGES
+    )
+    mock_multi_day_functions["prs"].assert_called_once_with(
+        "activeuser", 7, "token123", max_pr_pages=DEFAULT_MAX_PR_PAGES
+    )
+
+
+def test_days_argument_one_day_uses_today_functions(mock_core_functions, caplog):
+    """Test --days 1 uses today-specific functions."""
+    caplog.set_level(logging.INFO)
+    mock_core_functions["commits"].return_value = True
+    mock_core_functions["prs"].return_value = False
+
+    test_env = {"GITHUB_USERNAME": "todayuser"}
+    with patch.dict(cli.os.environ, test_env, clear=True):
+        exit_code = run_cli_main_and_get_code(["duck", "--days", "1"])
+
+    assert exit_code == EXIT_CODE_SUCCESS
+    assert "QUACK! Activity found for 'todayuser' today" in caplog.text
+    mock_core_functions["commits"].assert_called_once_with(
+        "todayuser", None, max_event_pages=DEFAULT_MAX_EVENT_PAGES
+    )
+    mock_core_functions["prs"].assert_called_once_with(
+        "todayuser", None, max_pr_pages=DEFAULT_MAX_PR_PAGES
+    )

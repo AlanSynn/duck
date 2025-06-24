@@ -32,7 +32,7 @@ jobs:
       - name: Create tmp directory
         run: mkdir -p tmp
 
-      - name: Check for today's activity (commits/PRs)
+      - name: Check for activity in the last 3 days (commits/PRs)
         id: duck_check
         env:
           USERNAME: ${{ secrets.USERNAME }}
@@ -52,13 +52,13 @@ jobs:
           secure: true
           username: ${{ secrets.SMTP_USER }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "DUCK: No GitHub Activity Today!"
+          subject: "DUCK: No GitHub Activity in 3 Days!"
           to: ${{ secrets.EMAIL_RECIPIENT }}
           from: DUCK Reminder <${{ secrets.SMTP_USER }}>
           body: |
             Hello @${{ secrets.USERNAME }},
 
-            It looks like you haven't had any GitHub activity (commits or PRs) today.
+            It looks like you haven't had any GitHub activity (commits or PRs) in the last 3 days.
             Don't be a DUCK! Time to make some contributions.
 
             Maintaining a consistent GitHub contribution streak is important for:

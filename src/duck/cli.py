@@ -8,7 +8,7 @@ import argparse
 import logging
 import os
 import sys
-from datetime import datetime, timezone  # Keep for date operations
+from datetime import datetime, timedelta, timezone  # Keep for date operations
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -17,6 +17,8 @@ import toml
 from duck.core import (
     DEFAULT_MAX_EVENT_PAGES,
     DEFAULT_MAX_PR_PAGES,
+    find_commits_last_days,
+    find_prs_last_days,
     find_todays_commits,
     find_todays_prs,
 )
@@ -66,22 +68,44 @@ def load_config() -> Dict[str, Any]:
 def handle_check(args: argparse.Namespace, github_user: str, github_token: Optional[str]) -> int:
     """Handles the main logic for checking commits and PRs."""
     logger.info(f"Executing DUCK check for {github_user}")
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    logger.info(f"Checking for commits and PRs made by '{github_user}' on {today_str} (UTC).")
-
+    days = args.days
     max_event_pages = args.max_event_pages
     max_pr_pages = args.max_pr_pages
 
     try:
-        commits_found_today = find_todays_commits(github_user, github_token, max_event_pages=max_event_pages)
-        prs_found_today = find_todays_prs(github_user, github_token, max_pr_pages=max_pr_pages)
+        if days > 1:
+            # Check for activity in the last N days
+            today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            start_date_str = (datetime.now(timezone.utc) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+            logger.info(f"Checking for commits and PRs made by '{github_user}' between {start_date_str} and {today_str} (UTC).")
 
-        if commits_found_today or prs_found_today:
-            logger.info(f"QUACK! Activity found for '{github_user}' today ({today_str} UTC).")
-            return EXIT_CODE_SUCCESS
+            commits_found = find_commits_last_days(github_user, days, github_token, max_event_pages=max_event_pages)
+            prs_found = find_prs_last_days(github_user, days, github_token, max_pr_pages=max_pr_pages)
+
+            if commits_found or prs_found:
+                logger.info(f"QUACK! Activity found for '{github_user}' in the last {days} days.")
+                return EXIT_CODE_SUCCESS
+            else:
+                logger.warning(
+                    f"No commits or PRs found for '{github_user}' in the last {days} days. Don't be a DUCK! Time to make some contributions. (Exit code {EXIT_CODE_NO_ACTIVITY})"  # noqa: E501
+                )
+                return EXIT_CODE_NO_ACTIVITY
         else:
-            logger.warning(f"No commits or PRs found for '{github_user}' today. Don't be a DUCK! Time to make some contributions. (Exit code {EXIT_CODE_NO_ACTIVITY})")
-            return EXIT_CODE_NO_ACTIVITY
+            # Check for today's activity (original behavior)
+            today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            logger.info(f"Checking for commits and PRs made by '{github_user}' on {today_str} (UTC).")
+
+            commits_found_today = find_todays_commits(github_user, github_token, max_event_pages=max_event_pages)
+            prs_found_today = find_todays_prs(github_user, github_token, max_pr_pages=max_pr_pages)
+
+            if commits_found_today or prs_found_today:
+                logger.info(f"QUACK! Activity found for '{github_user}' today ({today_str} UTC).")
+                return EXIT_CODE_SUCCESS
+            else:
+                logger.warning(
+                    f"No commits or PRs found for '{github_user}' today. Don't be a DUCK! Time to make some contributions. (Exit code {EXIT_CODE_NO_ACTIVITY})"
+                )
+                return EXIT_CODE_NO_ACTIVITY
 
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}", exc_info=True)
@@ -90,9 +114,10 @@ def handle_check(args: argparse.Namespace, github_user: str, github_token: Optio
 
 def main() -> int:
     """Main entry point for the DUCK CLI."""
-    parser = argparse.ArgumentParser(description="DUCK (Did U Commit mr.Kim?) - Checks for daily GitHub activity.")
+    parser = argparse.ArgumentParser(description="DUCK (Did U Commit mr.Kim?) - Checks for GitHub activity.")
     parser.add_argument("--user", type=str, help="GitHub username to check.")
     parser.add_argument("--token", type=str, help="GitHub Personal Access Token.")
+    parser.add_argument("--days", type=int, default=1, help="Number of days to check back from today (default: 1, i.e., today only).")
     parser.add_argument("--max-event-pages", type=int, help="Maximum number of commit event pages to fetch.")
     parser.add_argument("--max-pr-pages", type=int, help="Maximum number of pull request pages to fetch.")
     parser.add_argument("-v", "--verbose", action="count", default=0, help="Increase verbosity (-v, -vv).")

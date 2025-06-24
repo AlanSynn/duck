@@ -13,6 +13,9 @@ from duck.core import (
     find_todays_commits,
     find_todays_prs,
     find_todays_push_events,
+    find_commits_last_days,
+    find_prs_last_days,
+    find_push_events_in_date_range,
 )
 from duck.models import GitHubEvent, PullRequestSimple, PullRequestUser
 
@@ -311,4 +314,148 @@ def test_find_todays_prs_no_prs_fetched(mock_fetch_prs):
 def test_find_todays_prs_empty_pr_list_fetched(mock_fetch_prs):
     mock_fetch_prs.return_value = []
     result = find_todays_prs("test-user", "fake-token")
+    assert result is False
+
+# Test multi-day functionality
+@patch("duck.core.fetch_github_user_public_events")
+def test_find_commits_last_days_found(mock_fetch):
+    """Test find_commits_last_days returns True when commits found in range."""
+    # Mock event within 3-day range
+    two_days_ago = datetime.now(timezone.utc) - timedelta(days=2)
+
+    mock_event = GitHubEvent(
+        id="12345",
+        type="PushEvent",
+        created_at=two_days_ago,
+        actor={"id": 1, "login": "test-user"},
+        payload={"ref": "refs/heads/main", "size": 1},
+    )
+    mock_fetch.return_value = [mock_event]
+
+    result = find_commits_last_days("testuser", days=3)
+
+    assert result is True
+    mock_fetch.assert_called_once_with("testuser", None, max_pages=5)
+
+
+@patch("duck.core.fetch_github_user_public_events")
+def test_find_commits_last_days_not_found(mock_fetch):
+    """Test find_commits_last_days returns False when no commits in range."""
+    # Mock event outside 3-day range
+    four_days_ago = datetime.now(timezone.utc) - timedelta(days=4)
+
+    mock_event = GitHubEvent(
+        id="12345",
+        type="PushEvent",
+        created_at=four_days_ago,
+        actor={"id": 1, "login": "test-user"},
+        payload={"ref": "refs/heads/main", "size": 1},
+    )
+    mock_fetch.return_value = [mock_event]
+
+    result = find_commits_last_days("testuser", days=3)
+
+    assert result is False
+    mock_fetch.assert_called_once_with("testuser", None, max_pages=5)
+
+
+@patch("duck.core.fetch_user_pull_requests")
+def test_find_prs_last_days_found(mock_fetch, sample_pr_user_data_dict):
+    """Test find_prs_last_days returns True when PRs found in range."""
+    # Mock PR within 3-day range
+    one_day_ago = datetime.now(timezone.utc) - timedelta(days=1)
+
+    mock_pr = PullRequestSimple(
+        id=101,
+        html_url="https://github.com/owner/repo/pull/101",
+        number=101,
+        title="PR in range",
+        state="open",
+        locked=False,
+        user=PullRequestUser(**sample_pr_user_data_dict),
+        created_at=one_day_ago.isoformat(),
+        updated_at=one_day_ago.isoformat(),
+        repository_url="https://api.github.com/repos/owner/repo"
+    )
+    mock_fetch.return_value = [mock_pr]
+
+    result = find_prs_last_days("testuser", days=3)
+
+    assert result is True
+    mock_fetch.assert_called_once_with(
+        username="testuser",
+        search_query_type="involves",
+        token=None,
+        max_pages=2,
+        sort="updated",
+        order="desc",
+    )
+
+
+@patch("duck.core.fetch_user_pull_requests")
+def test_find_prs_last_days_not_found(mock_fetch, sample_pr_user_data_dict):
+    """Test find_prs_last_days returns False when no PRs in range."""
+    # Mock PR outside 3-day range
+    five_days_ago = datetime.now(timezone.utc) - timedelta(days=5)
+
+    mock_pr = PullRequestSimple(
+        id=102,
+        html_url="https://github.com/owner/repo/pull/102",
+        number=102,
+        title="PR outside range",
+        state="open",
+        locked=False,
+        user=PullRequestUser(**sample_pr_user_data_dict),
+        created_at=five_days_ago.isoformat(),
+        updated_at=five_days_ago.isoformat(),
+        repository_url="https://api.github.com/repos/owner/repo"
+    )
+    mock_fetch.return_value = [mock_pr]
+
+    result = find_prs_last_days("testuser", days=3)
+
+    assert result is False
+
+
+def test_find_push_events_in_date_range():
+    """Test find_push_events_in_date_range function."""
+    today = datetime.now(timezone.utc)
+    yesterday = today - timedelta(days=1)
+    three_days_ago = today - timedelta(days=3)
+
+    # Event within range
+    event_in_range = GitHubEvent(
+        id="12345",
+        type="PushEvent",
+        created_at=yesterday,
+        actor={"id": 1, "login": "test-user"},
+        payload={"ref": "refs/heads/main", "size": 1},
+    )
+
+    # Event outside range
+    event_outside_range = GitHubEvent(
+        id="54321",
+        type="PushEvent",
+        created_at=three_days_ago,
+        actor={"id": 1, "login": "test-user"},
+        payload={"ref": "refs/heads/main", "size": 1},
+    )
+
+    start_date = (today - timedelta(days=2)).date()
+    end_date = today.date()
+
+    # Test with event in range
+    result = find_push_events_in_date_range([event_in_range], start_date, end_date)
+    assert result is True
+
+    # Test with event outside range
+    result = find_push_events_in_date_range([event_outside_range], start_date, end_date)
+    assert result is False
+
+    # Test with no events
+    result = find_push_events_in_date_range([], start_date, end_date)
+    assert result is False
+
+    # Test with None events
+    result = find_push_events_in_date_range(None, start_date, end_date)
     assert result is False
