@@ -96,7 +96,10 @@ def _fetch_single_events_page(url: str, headers: dict, page_num: int, username_f
 
 
 def fetch_github_user_public_events(username: str, token: Optional[str] = None, max_pages: int = 10) -> Optional[List[GitHubEvent]]:
-    """Fetch public events for a given GitHub user, handling pagination.
+    """Fetch events for a given GitHub user, handling pagination.
+
+    When a token is provided, this function fetches all events (including private ones)
+    that the authenticated user has access to. Without a token, only public events are fetched.
 
     Args:
         username: The GitHub username.
@@ -110,14 +113,20 @@ def fetch_github_user_public_events(username: str, token: Optional[str] = None, 
         logger.error("GitHub username cannot be empty.")
         return None
 
-    next_url: Optional[str] = f"https://api.github.com/users/{username}/events/public?per_page=100"
+    # Use /events endpoint with token to get private events, /events/public without token
+    if token:
+        next_url: Optional[str] = f"https://api.github.com/users/{username}/events?per_page=100"
+    else:
+        next_url: Optional[str] = f"https://api.github.com/users/{username}/events/public?per_page=100"
+
     headers = {"Accept": "application/vnd.github.v3+json", "X-GitHub-Api-Version": "2022-11-28"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
     all_events: List[GitHubEvent] = []
     pages_fetched = 0
-    logger.info(f"Fetching public events for user: {username}. Max pages: {max_pages}")
+    event_type = "all events (including private)" if token else "public events"
+    logger.info(f"Fetching {event_type} for user: {username}. Max pages: {max_pages}")
 
     while next_url and pages_fetched < max_pages:
         page_events, next_url_from_page = _fetch_single_events_page(url=next_url, headers=headers, page_num=pages_fetched + 1, username_for_context=username)

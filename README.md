@@ -8,8 +8,8 @@ DUCK is a simple Python tool designed to help you maintain your GitHub activity 
 
 ## Features
 
-*   Checks for public commits made by the user on the current day.
-*   Checks for public pull requests involving the user (created, commented on, merged, etc.) that were active on the current day.
+*   Checks for commits made by the user on the current day (public repos by default, private repos when GitHub token is provided).
+*   Checks for pull requests involving the user (created, commented on, merged, etc.) that were active on the current day.
 *   Sends a beautifully formatted HTML email notification if no activity is detected.
 *   Configurable via environment variables or TOML configuration file.
 *   Includes a GitHub Actions workflow for automated daily checks.
@@ -50,7 +50,7 @@ DUCK is a simple Python tool designed to help you maintain your GitHub activity 
     ```env
     # GitHub Configuration
     USERNAME="YourGitHubUsername"
-    # GITHUB_TOKEN="your_github_personal_access_token" # Optional: For checking private activity if DUCK supports it and if needed.
+    # GITHUB_TOKEN="your_github_personal_access_token" # Optional but recommended: Enables checking private repo activity
 
     # Email Recipient
     EMAIL_RECIPIENT="youremail@example.com"
@@ -144,15 +144,20 @@ The following secrets are required:
 *   `EMAIL_RECIPIENT`: The email address to send notifications to.
 *   `SMTP_USER`: Your SMTP username (e.g., your Gmail address).
 *   `SMTP_PASSWORD`: Your SMTP password (e.g., your Gmail App Password).
-*   `GITHUB_TOKEN`: (Optional but recommended for Actions) A GitHub Personal Access Token.
-    *   **Permissions needed**: `public_repo` (to access public repository data) and `read:user` (to read user profile data).
-    *   **Why it's recommended**: Ensures reliable API access, especially for accounts with a lot of activity or to access event details that might require it. The default `GITHUB_TOKEN` provided by Actions might have limitations for `/users/.../events` for some users/cases.
+*   `GITHUB_TOKEN`: (Optional but recommended) A GitHub Personal Access Token.
+    *   **Permissions needed**: `repo` (to access both public and private repository data) and `read:user` (to read user profile data).
+    *   **Why it's recommended**: 
+        *   Enables checking commits in private repositories (without a token, only public commits are detected)
+        *   Ensures reliable API access, especially for accounts with a lot of activity
+        *   Provides higher rate limits for the GitHub API
+    *   **Security**: Tokens should be stored as GitHub Secrets (for Actions) or in your `.env` file (for local use). Never commit them to your repository.
+    *   **Detailed setup guide**: See [docs/GITHUB_TOKEN_SETUP.md](docs/GITHUB_TOKEN_SETUP.md) for comprehensive instructions on creating and using tokens securely.
     *   To create a Personal Access Token (PAT):
         1.  Go to your GitHub **Settings** (click your profile picture in the top-right corner).
         2.  In the left sidebar, scroll down to **Developer settings**.
         3.  Click on **Personal access tokens**, then **Tokens (classic)**.
         4.  Click **Generate new token** (or **Generate new token (classic)**).
-        5.  Give your token a descriptive name, select the expiration, and check the `public_repo` and `read:user` scopes.
+        5.  Give your token a descriptive name, select the expiration, and check the `repo` and `read:user` scopes.
         6.  Click **Generate token** and copy the token value immediately. You won't be able to see it again.
 
 ## Configuration Options

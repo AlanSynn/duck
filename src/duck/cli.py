@@ -116,7 +116,7 @@ def main() -> int:
     """Main entry point for the DUCK CLI."""
     parser = argparse.ArgumentParser(description="DUCK (Did U Commit mr.Kim?) - Checks for GitHub activity.")
     parser.add_argument("--user", type=str, help="GitHub username to check.")
-    parser.add_argument("--token", type=str, help="GitHub Personal Access Token.")
+    parser.add_argument("--token", type=str, help="GitHub Personal Access Token (enables checking private repos).")
     parser.add_argument("--days", type=int, default=1, help="Number of days to check back from today (default: 1, i.e., today only).")
     parser.add_argument("--max-event-pages", type=int, help="Maximum number of commit event pages to fetch.")
     parser.add_argument("--max-pr-pages", type=int, help="Maximum number of pull request pages to fetch.")
