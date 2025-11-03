@@ -118,7 +118,7 @@ def fetch_github_user_public_events(username: str, token: Optional[str] = None, 
         next_url: Optional[str] = f"https://api.github.com/users/{username}/events?per_page=100"
     else:
         next_url: Optional[str] = f"https://api.github.com/users/{username}/events/public?per_page=100"
-    
+
     headers = {"Accept": "application/vnd.github.v3+json", "X-GitHub-Api-Version": "2022-11-28"}
     if token:
         headers["Authorization"] = f"Bearer {token}"

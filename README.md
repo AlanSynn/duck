@@ -150,6 +150,8 @@ The following secrets are required:
         *   Enables checking commits in private repositories (without a token, only public commits are detected)
         *   Ensures reliable API access, especially for accounts with a lot of activity
         *   Provides higher rate limits for the GitHub API
+    *   **Security**: Tokens should be stored as GitHub Secrets (for Actions) or in your `.env` file (for local use). Never commit them to your repository.
+    *   **Detailed setup guide**: See [docs/GITHUB_TOKEN_SETUP.md](docs/GITHUB_TOKEN_SETUP.md) for comprehensive instructions on creating and using tokens securely.
     *   To create a Personal Access Token (PAT):
         1.  Go to your GitHub **Settings** (click your profile picture in the top-right corner).
         2.  In the left sidebar, scroll down to **Developer settings**.
