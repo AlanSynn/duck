@@ -145,6 +145,39 @@ def test_fetch_github_user_public_events_json_error(mock_get):
 def test_fetch_github_user_public_events_empty_username():
     assert fetch_github_user_public_events("") is None
 
+@patch("requests.get")
+def test_fetch_github_user_public_events_uses_private_endpoint_with_token(mock_get, mock_requests_get_for_events):
+    """Test that /events endpoint is used when token is provided to fetch private events."""
+    mock_get.return_value = mock_requests_get_for_events
+    fetch_github_user_public_events("test-user", token="fake-token")
+    
+    # Verify the correct endpoint was called
+    call_args = mock_get.call_args
+    assert call_args is not None
+    url_used = call_args[0][0]
+    assert url_used == "https://api.github.com/users/test-user/events?per_page=100"
+    
+    # Verify authorization header was set
+    headers_used = call_args[1]["headers"]
+    assert "Authorization" in headers_used
+    assert headers_used["Authorization"] == "Bearer fake-token"
+
+@patch("requests.get")
+def test_fetch_github_user_public_events_uses_public_endpoint_without_token(mock_get, mock_requests_get_for_events):
+    """Test that /events/public endpoint is used when no token is provided."""
+    mock_get.return_value = mock_requests_get_for_events
+    fetch_github_user_public_events("test-user")
+    
+    # Verify the correct endpoint was called
+    call_args = mock_get.call_args
+    assert call_args is not None
+    url_used = call_args[0][0]
+    assert url_used == "https://api.github.com/users/test-user/events/public?per_page=100"
+    
+    # Verify no authorization header was set
+    headers_used = call_args[1]["headers"]
+    assert "Authorization" not in headers_used
+
 # Fixtures for PR Data
 @pytest.fixture
 def sample_pr_user_data_dict(): # as dict
