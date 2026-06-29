@@ -9,7 +9,7 @@ readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.9"
 dependencies = [
-    "requests>=2.32.5",
+    "requests>=2.34.2",
     "pydantic>=2.13.3,<3.0",
     "toml>=0.10.2"
 ]
