@@ -30,7 +30,7 @@ classifiers = [
 dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
-    "ruff>=0.16.6",
+    "ruff>=0.17.2",
     "pre-commit>=4.6.2",
 ]
 
@@ -81,5 +81,5 @@ indent-style = "space"
 dev = [
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
-    "ruff>=0.11.9",
+    "ruff>=0.17.2",
 ]
